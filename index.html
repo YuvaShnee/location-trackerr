@@ -254,7 +254,7 @@
     <h5>WFH Location Punch-In</h5>
 
     <input type="text" id="empId" placeholder="Employee ID">
-
+    <input type="password" id="empPassword" placeholder="Password">
     <button onclick="punchInEmployee()">Punch In</button>
 
     <div id="punchResult"></div>
@@ -291,18 +291,18 @@
         }
 
         function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const hamburger = document.getElementById('hamburger');
-        
-        if (sidebar.style.left === '0px') {
-            sidebar.style.left = '-300px';
-            hamburgerButton.innerHTML = '☰'; // Show hamburger icon
-            hamburger.style.display = 'block';
-        } else {
-            sidebar.style.left = '0px';
-            hamburger.style.display = 'none';
-        }
+    const sidebar = document.getElementById('sidebar');
+    const hamburgerButton = document.getElementById('hamburgerButton');
+
+    if (sidebar.style.left === '0px') {
+        sidebar.style.left = '-250px'; // match CSS
+        hamburgerButton.style.display = 'block';
+    } else {
+        sidebar.style.left = '0px';
+        hamburgerButton.style.display = 'none';
     }
+}
+
 
         function getUserLocation() {
             if (navigator.geolocation) {
@@ -350,24 +350,22 @@
         }
 
         function displayEntireMap() {
-            var indiaCoordinates = [78.9629, 20.5937];
+    const indiaCoordinates = [78.9629, 20.5937];
 
-            map = new atlas.Map('myMap', {
-                center: indiaCoordinates,
-                zoom: 4,
-                view: 'Auto',
-                authOptions: {
-                    authType: 'subscriptionKey',
-                    subscriptionKey: ''
-                }
-            });
-
-            map.events.add('ready', function () {
-                map.controls.add(new atlas.control.ZoomControl(), {
-                    position: 'top-right'
-                });
-            });
+    map = new atlas.Map('myMap', {
+        center: indiaCoordinates,
+        zoom: 4,
+        view: 'Auto',
+        authOptions: {
+            authType: 'subscriptionKey',
+            subscriptionKey: '29tQsOgaggLiWIY5lVfJ9pQ4MabgWEyAIcJSNCrUfEP1f33W6NDjJQQJ99AGACYeBjFd4FboAAAgAZMPZYdR'
         }
+    });
+
+    map.events.add('ready', function () {
+        map.controls.add(new atlas.control.ZoomControl(), { position: 'top-right' });
+    });
+}
 
         function showProfileInfo() {
             const profileInfo = document.getElementById('profile-info');
@@ -425,84 +423,95 @@ async function getAddressFromCoordinates(lat, lon) {
 <script>
 async function punchInEmployee() {
     const empId = document.getElementById("empId").value.trim();
+    const empPassword = document.getElementById("empPassword").value.trim();
     const result = document.getElementById("punchResult");
+    const punchBtn = document.querySelector("#punchForm button");
 
+    // Disable button to prevent multiple clicks
+    punchBtn.disabled = true;
+
+    // Validation
     const empIdPattern = /^EMP-\d{4}$/;
-
     if (!empIdPattern.test(empId)) {
+        result.innerHTML = `<div class="punch-error">Invalid Employee ID<br>Format should be <b>EMP-1234</b></div>`;
+        punchBtn.disabled = false;
+        return;
+    }
+
+    if (!empPassword) {
+        result.innerHTML = `<div class="punch-error">Password required</div>`;
+        punchBtn.disabled = false;
+        return;
+    }
+
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/;
+    if (!passwordPattern.test(empPassword)) {
         result.innerHTML = `
             <div class="punch-error">
-                 Invalid Employee ID<br>
-                Format should be <b>EMP-1234</b>
-            </div>
-        `;
+                Invalid password.<br>
+                Password must be at least 6 characters, include uppercase, lowercase, and a number.
+            </div>`;
+        punchBtn.disabled = false;
         return;
     }
 
     if (!navigator.geolocation) {
-        result.innerHTML = "<div class='punch-error'> Geolocation not supported</div>";
+        result.innerHTML = "<div class='punch-error'>Geolocation not supported</div>";
+        punchBtn.disabled = false;
         return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-        async function(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
 
-            const addressData = await getAddressFromCoordinates(lat, lng);
-            await fetch("/punch-in", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-        employeeId: empId,
-        latitude: lat,
-        longitude: lng
-    })
-});
+        try {
+            const response = await fetch("/punch-in", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ employeeId: empId, password: empPassword, latitude: lat, longitude: lng })
+            });
 
-startLiveTracking(empId);
+            const data = await response.json();
 
-
-            if (!addressData) {
-                result.innerHTML = "<div class='punch-error'> Unable to fetch address</div>";
+            if (!data.success) {
+                result.innerHTML = `<div class="punch-error">${data.message}</div>`;
+                punchBtn.disabled = false;
                 return;
             }
+
+            // Punch-in succeeded, start live tracking
+            startLiveTracking(empId, empPassword);
+
+            // Fetch address
+            const addressData = await getAddressFromCoordinates(lat, lng);
+            const addressText = addressData ? addressData.fullAddress : "Address not found";
+
             result.innerHTML = `
                 <div class="punch-success">
                     <b>PUNCHED IN</b><br>
                     ${empId}<br>
-                    ${addressData.fullAddress}
+                    ${addressText}
                 </div>
             `;
+        } catch(err) {
+  console.error(err);
+  result.innerHTML = `<div class="punch-error">Server error, try again.</div>`;
 
-            // Send to backend
-            const payload = {
-                employeeId: empId,
-                address: addressData.fullAddress,
-                street: addressData.street,
-                area: addressData.area,
-                city: addressData.city,
-                state: addressData.state,
-                country: addressData.country,
-                status: "PUNCHED_IN"
-            };
-
-            console.log("Punch Payload:", payload);
-        },
-        function() {
-            result.innerHTML = `
-                <div class="punch-error">
-                    Location permission denied
-                </div>
-            `;
+        } finally {
+            punchBtn.disabled = false; // Re-enable button
         }
-    );
+    }, () => {
+        result.innerHTML = `<div class="punch-error">Location permission denied</div>`;
+        punchBtn.disabled = false;
+    });
 }
+
 </script>
 <script>
 let liveInterval = null;
 
-function startLiveTracking(empId) {
+function startLiveTracking(empId,  empPassword) {
     if (liveInterval) clearInterval(liveInterval);
 
     liveInterval = setInterval(() => {
@@ -512,6 +521,7 @@ function startLiveTracking(empId) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     employeeId: empId,
+                    password: empPassword,
                     latitude: pos.coords.latitude,
                     longitude: pos.coords.longitude
                 })
