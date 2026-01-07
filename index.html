@@ -94,24 +94,26 @@ async function punchInEmployee() {
                 status: "PUNCHED_IN"
             };
 
-            try {
-                const res = await fetch("http://localhost:3000/api/punch-in", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
+           try {
+    const res = await fetch("http://localhost:3000/api/punch-in", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+});
 
-                const data = await res.json();
-                if (res.ok) {
-                    result.innerHTML = `✔ Punched in at ${new Date().toLocaleTimeString()}<br>
-                                        Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-                } else {
-                    result.innerHTML = ` ${data.message}`;
-                }
-            } catch (err) {
-                console.error(err);
-                result.innerHTML = " Error connecting to server";
-            }
+    const data = await res.json();
+
+    if (res.ok) {
+        result.innerHTML = `✔ Punched in at ${new Date().toLocaleTimeString()}<br>
+                            Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+    } else {
+        result.innerHTML = ` ${data.message}`;
+    }
+
+} catch (err) {
+    console.error(err);
+    result.innerHTML = " Error connecting to server";
+}
 
         }, () => { result.innerHTML=" Location permission denied"; });
     }
