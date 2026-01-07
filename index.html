@@ -96,20 +96,20 @@ async function punchInEmployee() {
 
            try {
     const res = await fetch("http://localhost:3000/api/punch-in", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-});
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
 
     const data = await res.json();
 
-    if (res.ok) {
-        result.innerHTML = `✔ Punched in at ${new Date().toLocaleTimeString()}<br>
-                            Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-    } else {
-        result.innerHTML = ` ${data.message}`;
+    if (!res.ok) {
+        result.innerHTML = data.message || "Server error";
+        return;
     }
 
+    result.innerHTML = ` Punched in at ${new Date().toLocaleTimeString()}<br>
+                        Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
 } catch (err) {
     console.error(err);
     result.innerHTML = " Error connecting to server";
