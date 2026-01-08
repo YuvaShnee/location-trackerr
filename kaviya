@@ -1,3 +1,0 @@
-mongoose.connect("mongodb+srv://2324046_db_user@admin:2324046_db_user@cluster0.mongodb.net/wfh_attendance?retryWrites=true&w=majority")
-  .then(() => console.log("MongoDB Atlas Connected"))
-  .catch(err => console.error("MongoDB Atlas Error:", err));
